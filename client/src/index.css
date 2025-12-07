@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+	body {
+		/* light mode bg / dark mode bg */
+		@apply bg-neutral-100 dark:bg-neutral-900;
+		touch-action: pan-y;
+		overscroll-behavior-x: none;
+	}
+}
+
+* {
+	@apply transition-colors duration-200;
+	scroll-behavior: smooth !important;
+}
+
+:root {
+	--sb-track: #f3f4f6; /* neutral-100/200 */
+	--sb-thumb: #9ca3af; /* neutral-400 */
+	--sb-thumb-hover: #6b7280; /* neutral-500 */
+}
+
+.dark {
+	--sb-track: #111827; /* neutral-900 */
+	--sb-thumb: #4b5563; /* neutral-600 */
+	--sb-thumb-hover: #9ca3af; /* neutral-400 */
+}
+
+/* Chromium/WebKit */
+*::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+	background: var(--sb-track);
+	border-radius: 6px;
+}
+
+*::-webkit-scrollbar-thumb {
+	background: var(--sb-thumb);
+	border-radius: 6px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+	background: var(--sb-thumb-hover);
+}
+
+/* Firefox */
+@supports (scrollbar-color: auto) {
+	* {
+		scrollbar-width: thin;
+		scrollbar-color: var(--sb-thumb) var(--sb-track);
+	}
+}

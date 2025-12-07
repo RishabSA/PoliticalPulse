@@ -1,0 +1,13 @@
+numpy
+pandas
+matplotlib
+feedparser
+requests
+beautifulsoup4
+pydantic
+python-dotenv
+fastapi
+uvicorn
+openai
+scikit-learn
+lxml
