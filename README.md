@@ -2,6 +2,8 @@
 
 ![PoliticalPulse Demo](resources/PoliticalPulseQuickDemo.gif)
 
+Try out PoliticalPulse at [https://politicalpulse.app/](https://politicalpulse.app/)
+
 PoliticalPulse is an AI-powered tool that gives members of Congress, their staff, and constituents a real-time read of public sentiment. By scanning trusted sources, it summarizes public opinions and highlights key strengths, concerns, and opportunities for improvement.
 
 PoliticalPulse bridges the awareness gap between representatives and their constituents. By collecting and presenting vast amounts of public information in clear, actionable insights, my game-changing tool promotes transparency, accountability, understanding, and mutual respect between our elected officials and the people.
