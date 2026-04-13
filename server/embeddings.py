@@ -1,14 +1,15 @@
-from openai import OpenAI
+import os
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.preprocessing import normalize
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from dotenv import load_dotenv
-import matplotlib.pyplot as plt
-import os
+from openai import OpenAI
+
 from scraper import (
     get_google_news_articles_rss,
     get_google_rss_redirect_links,
