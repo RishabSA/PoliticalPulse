@@ -58,10 +58,12 @@ async def lifespan(app: FastAPI):
 
         app.state.house_rep_members = house_rep_members
         app.state.senate_members = senate_members
-
-        yield
     except Exception as e:
         logger.error(f"An error occured while starting the API: {e}")
+        app.state.house_rep_members = []
+        app.state.senate_members = []
+
+    yield
 
 
 app = FastAPI(lifespan=lifespan)

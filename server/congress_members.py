@@ -79,7 +79,7 @@ def get_congress_members(api_key):
             partyName=member["partyName"],
             state=member["state"],
             district=member.get("district", None),
-            imageUrl=member["depiction"].get("imageUrl", ""),
+            imageUrl=(member.get("depiction") or {}).get("imageUrl", ""),
         )
         for member in house_rep_members
     ]
