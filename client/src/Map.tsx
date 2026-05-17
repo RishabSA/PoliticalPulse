@@ -1,8 +1,11 @@
+import type { FeatureCollection } from "geojson";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
+import type { LayerProps, MapLayerMouseEvent, MapRef } from "react-map-gl/maplibre";
 import { Layer, Map, Source } from "react-map-gl/maplibre";
+import type { Congressperson } from "./types";
 
-const fipsToState = {
+const fipsToState: Record<string, string> = {
 	"01": "Alabama",
 	"02": "Alaska",
 	"04": "Arizona",
@@ -10,58 +13,58 @@ const fipsToState = {
 	"06": "California",
 	"08": "Colorado",
 	"09": "Connecticut",
-	10: "Delaware",
-	11: "District of Columbia",
-	12: "Florida",
-	13: "Georgia",
-	15: "Hawaii",
-	16: "Idaho",
-	17: "Illinois",
-	18: "Indiana",
-	19: "Iowa",
-	20: "Kansas",
-	21: "Kentucky",
-	22: "Louisiana",
-	23: "Maine",
-	24: "Maryland",
-	25: "Massachusetts",
-	26: "Michigan",
-	27: "Minnesota",
-	28: "Mississippi",
-	29: "Missouri",
-	30: "Montana",
-	31: "Nebraska",
-	32: "Nevada",
-	33: "New Hampshire",
-	34: "New Jersey",
-	35: "New Mexico",
-	36: "New York",
-	37: "North Carolina",
-	38: "North Dakota",
-	39: "Ohio",
-	40: "Oklahoma",
-	41: "Oregon",
-	42: "Pennsylvania",
-	44: "Rhode Island",
-	45: "South Carolina",
-	46: "South Dakota",
-	47: "Tennessee",
-	48: "Texas",
-	49: "Utah",
-	50: "Vermont",
-	51: "Virginia",
-	53: "Washington",
-	54: "West Virginia",
-	55: "Wisconsin",
-	56: "Wyoming",
-	60: "American Samoa",
-	66: "Guam",
-	69: "Northern Mariana Islands",
-	72: "Puerto Rico",
-	78: "U.S. Virgin Islands",
+	"10": "Delaware",
+	"11": "District of Columbia",
+	"12": "Florida",
+	"13": "Georgia",
+	"15": "Hawaii",
+	"16": "Idaho",
+	"17": "Illinois",
+	"18": "Indiana",
+	"19": "Iowa",
+	"20": "Kansas",
+	"21": "Kentucky",
+	"22": "Louisiana",
+	"23": "Maine",
+	"24": "Maryland",
+	"25": "Massachusetts",
+	"26": "Michigan",
+	"27": "Minnesota",
+	"28": "Mississippi",
+	"29": "Missouri",
+	"30": "Montana",
+	"31": "Nebraska",
+	"32": "Nevada",
+	"33": "New Hampshire",
+	"34": "New Jersey",
+	"35": "New Mexico",
+	"36": "New York",
+	"37": "North Carolina",
+	"38": "North Dakota",
+	"39": "Ohio",
+	"40": "Oklahoma",
+	"41": "Oregon",
+	"42": "Pennsylvania",
+	"44": "Rhode Island",
+	"45": "South Carolina",
+	"46": "South Dakota",
+	"47": "Tennessee",
+	"48": "Texas",
+	"49": "Utah",
+	"50": "Vermont",
+	"51": "Virginia",
+	"53": "Washington",
+	"54": "West Virginia",
+	"55": "Wisconsin",
+	"56": "Wyoming",
+	"60": "American Samoa",
+	"66": "Guam",
+	"69": "Northern Mariana Islands",
+	"72": "Puerto Rico",
+	"78": "U.S. Virgin Islands",
 };
 
-const stateOutlineLayer = {
+const stateOutlineLayer: LayerProps = {
 	id: "state-outline",
 	type: "line",
 	paint: {
@@ -70,7 +73,7 @@ const stateOutlineLayer = {
 	},
 };
 
-const lineLayer = {
+const lineLayer: LayerProps = {
 	id: "cd-line",
 	type: "line",
 	source: "cd",
@@ -80,7 +83,7 @@ const lineLayer = {
 	},
 };
 
-const houseLabelLayer = {
+const houseLabelLayer: LayerProps = {
 	id: "cd-labels",
 	type: "symbol",
 	source: "cd",
@@ -104,7 +107,7 @@ const houseLabelLayer = {
 	},
 };
 
-const senateLabelLayer = {
+const senateLabelLayer: LayerProps = {
 	id: "state-labels",
 	type: "symbol",
 	source: "states",
@@ -125,6 +128,7 @@ const senateLabelLayer = {
 	},
 };
 
+// Uses deprecated maplibre "interval" stop syntax — cast to bypass strict type check
 const dataLayer = {
 	id: "data",
 	type: "fill",
@@ -152,7 +156,20 @@ const dataLayer = {
 		},
 		"fill-opacity": 0.5,
 	},
-};
+} as unknown as LayerProps;
+
+type HoverInfo =
+	| { kind: "house"; x: number; y: number; state: string; district: string; rep: string }
+	| { kind: "senate"; x: number; y: number; state: string; senators: string[] };
+
+interface InteractiveMapProps {
+	houseMembers: Congressperson[];
+	senateMembers: Congressperson[];
+	setCongressperson: (member: Congressperson | null) => void;
+	setPossibleSenators: (senators: Congressperson[]) => void;
+	setIsChooseSenatorModalOpen: (open: boolean) => void;
+	congress: string;
+}
 
 export default function InteractiveMap({
 	houseMembers,
@@ -161,23 +178,20 @@ export default function InteractiveMap({
 	setPossibleSenators,
 	setIsChooseSenatorModalOpen,
 	congress,
-}) {
-	const mapRef = useRef(null);
-	const [hoverInfo, setHoverInfo] = useState(null);
-	const [geojson, setGeojson] = useState(null);
-	const [statesGeo, setStatesGeo] = useState(null);
+}: InteractiveMapProps) {
+	const mapRef = useRef<MapRef | null>(null);
+	const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
+	const [geojson, setGeojson] = useState<FeatureCollection | null>(null);
+	const [statesGeo, setStatesGeo] = useState<FeatureCollection | null>(null);
 
 	useEffect(() => {
 		(async () => {
-			const geojson_path = "/data/us_state.geojson";
-
-			const response = await fetch(geojson_path);
-			const states_gj = await response.json();
+			const response = await fetch("/data/us_state.geojson");
+			const states_gj = await response.json() as FeatureCollection;
 			setStatesGeo(states_gj);
 		})();
 	}, []);
 
-	// Load and augment GeoJSON
 	useEffect(() => {
 		(async () => {
 			const geojson_path =
@@ -186,9 +200,8 @@ export default function InteractiveMap({
 					: "/data/us_state.geojson";
 
 			const response = await fetch(geojson_path);
-			const gj = await response.json();
+			const gj = await response.json() as FeatureCollection;
 
-			// Add a bucket to each feature for random colors
 			for (const f of gj.features) {
 				const geoid = Number(String(f.properties?.GEOID ?? f.id));
 				const bucket = Number.isFinite(geoid)
@@ -215,21 +228,21 @@ export default function InteractiveMap({
 		});
 	}, []);
 
-	const onHover = e => {
-		const f = e.features[0];
-		if (!f) {
+	const onHover = (e: MapLayerMouseEvent) => {
+		const f = e.features?.[0];
+		if (!f || !f.properties) {
 			setHoverInfo(null);
 			return;
 		}
 
-		const state = fipsToState[f.properties.STATEFP];
+		const state = fipsToState[String(f.properties.STATEFP)];
 
 		if (congress === "House of Representatives") {
-			const district = f.properties.NAMELSAD.replace(
+			const district = String(f.properties.NAMELSAD ?? "").replace(
 				"Congressional District",
 				""
 			);
-			let rep = "";
+			let rep: Congressperson | undefined;
 			if (district === " (at Large)") {
 				rep = houseMembers.find(member => member.state === state);
 			} else {
@@ -239,8 +252,8 @@ export default function InteractiveMap({
 				);
 			}
 
-			// x, y, are relative to the map container
 			setHoverInfo({
+				kind: "house",
 				x: e.point.x,
 				y: e.point.y,
 				state,
@@ -252,32 +265,32 @@ export default function InteractiveMap({
 				.filter(member => member.state === state)
 				.map(senator => senator.name);
 
-			// x, y, are relative to the map container
 			setHoverInfo({
+				kind: "senate",
 				x: e.point.x,
 				y: e.point.y,
 				state,
-				senators: senators ? senators : "Not found",
+				senators,
 			});
 		}
 	};
 
-	const onChoose = e => {
-		const f = e.features[0];
-		if (!f) {
+	const onChoose = (e: MapLayerMouseEvent) => {
+		const f = e.features?.[0];
+		if (!f || !f.properties) {
 			setHoverInfo(null);
 			return;
 		}
 
-		const state = fipsToState[f.properties.STATEFP];
+		const state = fipsToState[String(f.properties.STATEFP)];
 
 		if (congress === "House of Representatives") {
-			const district = f.properties.NAMELSAD.replace(
+			const district = String(f.properties.NAMELSAD ?? "").replace(
 				"Congressional District",
 				""
 			);
 
-			let rep = "";
+			let rep: Congressperson | undefined;
 			if (district === " (at Large)") {
 				rep = houseMembers.find(member => member.state === state);
 			} else {
@@ -287,7 +300,7 @@ export default function InteractiveMap({
 				);
 			}
 
-			setCongressperson(rep);
+			setCongressperson(rep ?? null);
 		} else {
 			const senators = senateMembers.filter(member => member.state === state);
 
@@ -310,15 +323,17 @@ export default function InteractiveMap({
 				onMouseMove={onHover}
 				onMouseLeave={() => setHoverInfo(null)}
 				onClick={onChoose}>
-				<Source type="geojson" data={geojson} promoteId="GEOID">
-					<Layer {...dataLayer} />
-					<Layer {...lineLayer} />
-					{congress === "House of Representatives" ? (
-						<Layer key="labels-house" {...houseLabelLayer} />
-					) : (
-						<Layer key="labels-senate" {...senateLabelLayer} />
-					)}
-				</Source>
+				{geojson && (
+					<Source type="geojson" data={geojson} promoteId="GEOID">
+						<Layer {...dataLayer} />
+						<Layer {...lineLayer} />
+						{congress === "House of Representatives" ? (
+							<Layer key="labels-house" {...houseLabelLayer} />
+						) : (
+							<Layer key="labels-senate" {...senateLabelLayer} />
+						)}
+					</Source>
+				)}
 
 				{statesGeo && (
 					<Source id="states-outline" type="geojson" data={statesGeo}>
@@ -334,7 +349,7 @@ export default function InteractiveMap({
 						left: hoverInfo.x + 10,
 						top: hoverInfo.y + 10,
 					}}>
-					{congress === "House of Representatives" ? (
+					{hoverInfo.kind === "house" ? (
 						<>
 							<div className="font-bold text-md text-neutral-900">
 								{hoverInfo.state} - District {hoverInfo.district}
@@ -348,7 +363,7 @@ export default function InteractiveMap({
 							</div>
 							<ul className="flex flex-col mt-4 space-y-1 text-neutral-600">
 								{hoverInfo.senators.map(senator => (
-									<li>Senator {senator}</li>
+									<li key={senator}>Senator {senator}</li>
 								))}
 							</ul>
 						</>

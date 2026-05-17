@@ -1,6 +1,6 @@
 import html2canvas from "html2canvas-pro";
 import { jsPDF } from "jspdf";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
 	AlertCircle,
 	ArrowRight,
@@ -30,6 +30,9 @@ import {
 import InteractiveMap from "./Map";
 import TextCarousel from "./TextCarousel";
 import TopicScatter from "./TopicScatter";
+import type { Congressperson, FeedbackHistoryItem, ReportResponse } from "./types";
+
+type CongressChamber = "House of Representatives" | "Senate";
 
 function App() {
 	const [theme, setTheme] = useState(() => {
@@ -41,11 +44,11 @@ function App() {
 	const [congresspersonDropdownOpen, setCongresspersonDropdownOpen] =
 		useState(false);
 	const [dropdownSearch, setDropdownSearch] = useState("");
-	const [congressperson, setCongressperson] = useState(null);
-	const [possibleSenators, setPossibleSenators] = useState(null);
-	const [houseMembers, setHouseMembers] = useState([]);
-	const [senateMembers, setSenateMembers] = useState([]);
-	const [feedback, setFeedback] = useState(null);
+	const [congressperson, setCongressperson] = useState<Congressperson | null>(null);
+	const [possibleSenators, setPossibleSenators] = useState<Congressperson[] | null>(null);
+	const [houseMembers, setHouseMembers] = useState<Congressperson[]>([]);
+	const [senateMembers, setSenateMembers] = useState<Congressperson[]>([]);
+	const [feedback, setFeedback] = useState<ReportResponse | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [feedbackLoading, setFeedbackLoading] = useState(false);
 	const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
@@ -53,16 +56,16 @@ function App() {
 	const [isClearModalOpen, setIsClearModalOpen] = useState(false);
 	const [isChooseSenatorModalOpen, setIsChooseSenatorModalOpen] =
 		useState(false);
-	const [feedbackHistory, setFeedbackHistory] = useState([]);
+	const [feedbackHistory, setFeedbackHistory] = useState<FeedbackHistoryItem[]>([]);
 	const [feedbackHistoryIndexToDelete, setFeedbackHistoryIndexToDelete] =
 		useState(0);
 	const [openHistory, setOpenHistory] = useState(false);
 	const [congressDropdownOpen, setCongressDropdownOpen] = useState(false);
-	const [congress, setCongress] = useState("House of Representatives");
+	const [congress, setCongress] = useState<CongressChamber>("House of Representatives");
 
-	const targetRef = useRef(null);
+	const targetRef = useRef<HTMLDivElement | null>(null);
 
-	const normalizeSearch = searchText =>
+	const normalizeSearch = (searchText: string) =>
 		(searchText ?? "").toString().toLowerCase().trim();
 
 	const filteredMembers = useMemo(() => {
@@ -106,10 +109,10 @@ function App() {
 		}
 	};
 
-	const loadFeedbackHistory = () => {
+	const loadFeedbackHistory = (): FeedbackHistoryItem[] => {
 		try {
 			const raw = localStorage.getItem("feedback_history");
-			return raw ? JSON.parse(raw) : [];
+			return raw ? (JSON.parse(raw) as FeedbackHistoryItem[]) : [];
 		} catch (e) {
 			console.error(
 				`An unexpected error occurred while loading past reports: ${e}`
@@ -122,7 +125,7 @@ function App() {
 		}
 	};
 
-	const saveNewFeedbackHistory = entry => {
+	const saveNewFeedbackHistory = (entry: FeedbackHistoryItem) => {
 		const history = feedbackHistory;
 		history.unshift(entry); // Add to the start
 
@@ -130,7 +133,7 @@ function App() {
 		setFeedbackHistory(history);
 	};
 
-	const deleteFeedbackHistoryItem = index => {
+	const deleteFeedbackHistoryItem = (index: number) => {
 		const history = [
 			...feedbackHistory.slice(0, index),
 			...feedbackHistory.slice(index + 1),
@@ -144,6 +147,8 @@ function App() {
 	};
 
 	const analyzeCongressperson = async () => {
+		if (!congressperson) return;
+
 		try {
 			setFeedbackLoading(true);
 			setFeedback(null);
@@ -161,7 +166,7 @@ function App() {
 			console.log(feedbackData);
 			setFeedback(feedbackData);
 
-			const feedbackDataWithId = {
+			const feedbackDataWithId: FeedbackHistoryItem = {
 				...feedbackData,
 				name: congressperson.name,
 				state: congressperson.state,
@@ -172,7 +177,7 @@ function App() {
 
 			saveNewFeedbackHistory(feedbackDataWithId);
 		} catch (e) {
-			console.error(`Obtaining feedback for ${congressperson} failed: ${e}`);
+			console.error(`Obtaining feedback for ${congressperson.name} failed: ${e}`);
 			toast.error("Something went wrong. Please try again later.");
 		} finally {
 			setFeedbackLoading(false);
@@ -211,12 +216,14 @@ function App() {
 		} else {
 			document.body.style.overflow = "";
 		}
-		return () => (document.body.style.overflow = "");
+		return () => {
+			document.body.style.overflow = "";
+		};
 	}, [loading]);
 
 	const saveAsPDF = async () => {
 		const el = targetRef.current;
-		if (!el) return;
+		if (!el || !congressperson) return;
 
 		const pdf = new jsPDF({ unit: "px", format: "a4" });
 		const pageWidth = pdf.internal.pageSize.getWidth();
@@ -274,7 +281,7 @@ function App() {
 				</div>
 			)}
 			<div
-				tabIndex="-1"
+				tabIndex={-1}
 				onClick={() => setIsInfoModalOpen(false)}
 				className={`fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-300 ${
 					isInfoModalOpen
@@ -392,7 +399,7 @@ function App() {
 
 			{congressperson && feedback && (
 				<div
-					tabIndex="-1"
+					tabIndex={-1}
 					onClick={() => setIsClustersModalOpen(false)}
 					className={`fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-300 ${
 						isClustersModalOpen
@@ -438,7 +445,7 @@ function App() {
 			)}
 
 			<div
-				tabIndex="-1"
+				tabIndex={-1}
 				onClick={() => setIsClearModalOpen(false)}
 				className={`fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-300 ${
 					isClearModalOpen
@@ -492,7 +499,7 @@ function App() {
 
 			{possibleSenators && (
 				<div
-					tabIndex="-1"
+					tabIndex={-1}
 					onClick={() => setIsChooseSenatorModalOpen(false)}
 					className={`fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-300 ${
 						isChooseSenatorModalOpen
@@ -599,12 +606,12 @@ function App() {
 														? houseMembers
 														: senateMembers;
 
-												setCongress(feedbackHistory[i].congress);
+												setCongress(feedbackHistory[i].congress as CongressChamber);
 
 												const member = memberList.find(
-													member => member.name === item.name
+													m => m.name === item.name
 												);
-												setCongressperson(member);
+												setCongressperson(member ?? null);
 												setOpenHistory(false);
 											}}>
 											<img
@@ -760,12 +767,12 @@ function App() {
 												? houseMembers
 												: senateMembers;
 
-										setCongress(feedbackHistory[i].congress);
+										setCongress(feedbackHistory[i].congress as CongressChamber);
 
 										const member = memberList.find(
-											member => member.name === item.name
+											m => m.name === item.name
 										);
-										setCongressperson(member);
+										setCongressperson(member ?? null);
 									}}>
 									<img
 										src={item.imageUrl}
@@ -932,7 +939,7 @@ function App() {
 																	member => member.name === name
 																);
 
-																setCongressperson(selection);
+																setCongressperson(selection ?? null);
 																setCongresspersonDropdownOpen(false);
 																setDropdownSearch("");
 															}}>
@@ -986,6 +993,7 @@ function App() {
 												<ul className="py-2 text-sm text-neutral-600 dark:text-neutral-400">
 													{[10, 15, 25, 50].map(limitVal => (
 														<li
+															key={limitVal}
 															onClick={() => {
 																setSourceLimit(limitVal);
 																setSourceLimitDropdownOpen(false);
@@ -1065,22 +1073,22 @@ function App() {
 								id="congressPersonFeedback">
 								<div className="hidden md:flex flex-col items-center text-center w-fit">
 									<img
-										src={congressperson.imageUrl}
-										alt={congressperson.name}
+										src={congressperson?.imageUrl}
+										alt={congressperson?.name}
 										className="w-32 rounded-md shadow-md"
 										data-html2canvas-ignore
 									/>
 									<label className="pt-2 font-bold text-neutral-900 dark:text-neutral-300">
-										{congressperson.name}
+										{congressperson?.name}
 									</label>
 									<label className="pt-1 text-sm font-medium text-neutral-900 dark:text-neutral-300">
 										{congress === "House of Representatives"
-											? `${congressperson.state} - ${
-													congressperson.district
+											? `${congressperson?.state} - ${
+													congressperson?.district
 														? congressperson.district
 														: "(at Large)"
 											  }`
-											: `${congressperson.state}`}
+											: `${congressperson?.state}`}
 									</label>
 								</div>
 

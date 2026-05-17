@@ -1,8 +1,13 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "react-feather";
 
-const TextCarousel = ({ text = [], interval = 5000 }) => {
-	const scrollerRef = useRef(null);
+interface TextCarouselProps {
+	text: string[];
+	interval?: number;
+}
+
+const TextCarousel = ({ text = [], interval = 5000 }: TextCarouselProps) => {
+	const scrollerRef = useRef<HTMLDivElement | null>(null);
 	const [idx, setIdx] = useState(0);
 	const [paused, setPaused] = useState(false);
 
@@ -19,7 +24,7 @@ const TextCarousel = ({ text = [], interval = 5000 }) => {
 		return () => element.removeEventListener("scroll", onScroll);
 	}, []);
 
-	const goTo = i => {
+	const goTo = (i: number) => {
 		const element = scrollerRef.current;
 		if (!element || text.length === 0) return;
 
@@ -92,7 +97,7 @@ const TextCarousel = ({ text = [], interval = 5000 }) => {
 			</div>
 
 			<div className="mt-4 flex gap-2">
-				{text.map((content, i) => (
+				{text.map((_content, i) => (
 					<button
 						key={i}
 						aria-label={`Go to slide ${i + 1}`}

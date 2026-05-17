@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { AxiosError, AxiosResponse } from "axios";
 
 // const server_url = "http://localhost:8000";
 const server_url = "https://political-pulse-server.onrender.com";
@@ -8,12 +8,12 @@ const api = axios.create({
 });
 
 api.interceptors.response.use(
-	res => res,
-	err => {
+	(res: AxiosResponse) => res,
+	(err: AxiosError) => {
 		console.error(
 			"[API ERROR]",
 			err?.response?.status,
-			err?.response?.data || err.message
+			err?.response?.data ?? err.message
 		);
 		return Promise.reject(err);
 	}

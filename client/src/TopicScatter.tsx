@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
 	Cell,
 	Legend,
@@ -9,6 +9,7 @@ import {
 	XAxis,
 	YAxis,
 } from "recharts";
+import type { ReportResponse } from "./types";
 
 const PALETTE = [
 	"#1f77b4",
@@ -23,7 +24,21 @@ const PALETTE = [
 	"#17becf",
 ];
 
-const TopicTooltip = ({ active, payload }) => {
+interface ScatterPoint {
+	x: number;
+	y: number;
+	title: string;
+	url: string;
+	cluster: number;
+	topic: string;
+}
+
+interface TopicTooltipProps {
+	active?: boolean;
+	payload?: Array<{ payload: ScatterPoint }>;
+}
+
+const TopicTooltip = ({ active, payload }: TopicTooltipProps) => {
 	if (!active || !payload || !payload.length) return null;
 	const p = payload[0].payload;
 
@@ -46,17 +61,13 @@ const TopicTooltip = ({ active, payload }) => {
 	);
 };
 
-const convertDataToPoints = (data, model) => {
-	const points = [];
+type ClusteringModel = "t-SNE" | "PCA";
+
+const convertDataToPoints = (data: ReportResponse, model: ClusteringModel): ScatterPoint[] => {
+	const points: ScatterPoint[] = [];
 	for (let i = 0; i < data.article_titles.length; i++) {
-		let x, y;
-		if (model === "t-SNE") {
-			x = Number(data.article_tsne_xs[i]);
-			y = Number(data.article_tsne_ys[i]);
-		} else if (model === "PCA") {
-			x = Number(data.article_pca_xs[i]);
-			y = Number(data.article_pca_ys[i]);
-		}
+		const x = model === "t-SNE" ? Number(data.article_tsne_xs[i]) : Number(data.article_pca_xs[i]);
+		const y = model === "t-SNE" ? Number(data.article_tsne_ys[i]) : Number(data.article_pca_ys[i]);
 
 		points.push({
 			x,
@@ -71,31 +82,34 @@ const convertDataToPoints = (data, model) => {
 	return points;
 };
 
-export default function TopicScatter({ data }) {
+interface TopicScatterProps {
+	data: ReportResponse;
+}
+
+export default function TopicScatter({ data }: TopicScatterProps) {
 	const [clusterDropdownOpen, setClusterDropdownOpen] = useState(false);
-	const [chosenClusteringModel, setChosenClusteringModel] = useState("t-SNE"); // or "PCA"
+	const [chosenClusteringModel, setChosenClusteringModel] = useState<ClusteringModel>("t-SNE");
 
 	const points = useMemo(
 		() => convertDataToPoints(data, chosenClusteringModel),
 		[data, chosenClusteringModel]
 	);
 
-	// Group by cluster for colored series and legend
 	const groups = useMemo(() => {
-		const map = new Map();
+		const map = new Map<number, ScatterPoint[]>();
 
 		for (const p of points) {
 			const k = Number(p.cluster);
 			if (!map.has(k)) map.set(k, []);
 
-			map.get(k).push(p);
+			map.get(k)!.push(p);
 		}
 
 		return [...map.entries()].sort((a, b) => a[0] - b[0]);
 	}, [points]);
 
 	const clusterLabels = useMemo(() => {
-		const m = new Map();
+		const m = new Map<number, string>();
 
 		for (const p of points) {
 			if (!m.has(p.cluster)) {
@@ -106,8 +120,8 @@ export default function TopicScatter({ data }) {
 		return m;
 	}, [points]);
 
-	const handlePointClick = e => {
-		if (e.url) window.open(e.url, "_blank", "noopener, noreferrer");
+	const handlePointClick = (point: ScatterPoint) => {
+		if (point.url) window.open(point.url, "_blank", "noopener, noreferrer");
 	};
 
 	return (
@@ -155,13 +169,16 @@ export default function TopicScatter({ data }) {
 
 					<Tooltip content={<TopicTooltip />} />
 
+					{/* recharts v3 doesn't expose payload on Legend's prop types — spread bypasses the check */}
 					<Legend
-						payload={groups.map(([c]) => ({
-							id: String(c),
-							type: "circle",
-							value: `${c}: ${clusterLabels.get(c)}`,
-							color: PALETTE[c % PALETTE.length],
-						}))}
+						{...{
+							payload: groups.map(([c]) => ({
+								id: String(c),
+								type: "circle",
+								value: `${c}: ${clusterLabels.get(c)}`,
+								color: PALETTE[c % PALETTE.length],
+							})),
+						}}
 						wrapperStyle={{ fontSize: 12 }}
 						verticalAlign="bottom"
 						align="center"
@@ -171,7 +188,7 @@ export default function TopicScatter({ data }) {
 						shape="circle"
 						cursor="pointer"
 						legendType="none"
-						onClick={e => handlePointClick(e.payload)}>
+						onClick={(e: { payload: ScatterPoint }) => handlePointClick(e.payload)}>
 						{points.map((p, i) => (
 							<Cell key={i} fill={PALETTE[p.cluster % PALETTE.length]} />
 						))}
@@ -182,8 +199,8 @@ export default function TopicScatter({ data }) {
 							data={pts}
 							name={pts[0].topic}
 							fill={PALETTE[c % PALETTE.length]}
-							legendType="circle" // show a circle in the legend
-							shape={() => null} // Don't render anythning (only use this for the legend as a workaround)
+							legendType="circle"
+							shape={() => <g />}
 							isAnimationActive={false}
 						/>
 					))}
